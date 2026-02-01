@@ -21,7 +21,7 @@ st.set_page_config(
 )
 st.title("Manager dashboard")
 
-
+#page list section
 pages = [
     st.Page("manager_pages/pg_analyze_repo.py", title="Analyze repository", icon=None),
     st.Page("manager_pages/pg_create_new_section.py", title="Create a new section", icon=None),
