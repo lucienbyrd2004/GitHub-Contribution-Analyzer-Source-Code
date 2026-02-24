@@ -1,8 +1,19 @@
 import requests
 from datetime import datetime
-from pprint import pprint
+from dataclasses import dataclass
 
-def get_commit_from_name(username: str, n: int) -> dict[int, dict]:
+@dataclass
+class GitHubCommit:
+    repo: str
+    sha: str
+    timestamp: datetime
+    message: str
+
+# TODO: Implement this!
+class GitHubPull:
+    pass
+
+def get_commit_from_name(username: str, n: int) -> list[GitHubCommit]:
     """
     Retrieve the last `n` commits from a user's GitHub profile.
     
@@ -13,22 +24,18 @@ def get_commit_from_name(username: str, n: int) -> dict[int, dict]:
         username (str): GitHub username. Should be sanitized to remove any
             special characters or whitespace before processing.
         n (int): Number of most recent commits to retrieve. Must be positive
-            and not exceed the maximum allowed limit (currently 100).
+            and not exceed the maximum allowed limit (currently 20).
 
     Returns:
-        dict[int, dict]: A dictionary where:
-            - Keys (int): Commit index from most recent (0 = latest commit)
-            - Values (dict): Commit details containing:
-                - 'repo' (str): Repository name
-                - 'sha' (str): Commit SHA hash
-                - 'datetime' (str): ISO format timestamp of commit
-                - 'message' (str): Commit message
+        list[GitHubCommit]: A list of commit objects ordered from most 
+            recent to oldest. Each object contains 'repo', 'sha', 
+            'timestamp', and 'message' attributes.
 
     Raises:
         TypeError: If `n` is not an integer.
         ValueError: If:
             - `n` is less than 1
-            - `n` exceeds the maximum allowed limit (currently 100)
+            - `n` exceeds the maximum allowed limit (currently 20)
             - The username is invalid (empty, contains invalid characters)
 
     Example:
@@ -43,7 +50,7 @@ def get_commit_from_name(username: str, n: int) -> dict[int, dict]:
     }
 
     user_event_str = f"https://api.github.com/users/{username}/events"
-    results = {}
+    results = []
     i: int = 0 # Integer to hold our iterations
 
     response = requests.get(user_event_str, headers=headers) # Added headers here just in case
@@ -67,13 +74,13 @@ def get_commit_from_name(username: str, n: int) -> dict[int, dict]:
                 commit_res = requests.get(commit_url, headers=headers)
                 if commit_res.status_code == 200:
                     commit_data = commit_res.json()
-                    
-                    results[i] = {
-                        "Repo":     repo_name,
-                        "SHA":      commit_sha,
-                        "datetime": datetime,
-                        "Message":  commit_data['commit']['message'].splitlines()[0]
-                    }
+
+                    results.append(GitHubCommit(
+                        repo=repo_name,
+                        sha=commit_sha,
+                        timestamp=created_at,
+                        message=commit_data['commit']['message'].splitlines()[0]
+                    ))
 
                 else:
                     # TODO: Evaluate how to properly handle this
