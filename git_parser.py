@@ -1,13 +1,17 @@
 import requests
 from datetime import datetime
 from dataclasses import dataclass
+from textblob import TextBlob
 
+# TODO: Turn this into a real class
 @dataclass
 class GitHubCommit:
     repo: str
     sha: str
     timestamp: datetime
     message: str
+    polarity: float
+    subjectivity: float
 
 # TODO: Implement this!
 class GitHubPull:
@@ -75,18 +79,35 @@ def get_commit_from_name(username: str, n: int) -> list[GitHubCommit]:
                 if commit_res.status_code == 200:
                     commit_data = commit_res.json()
 
+                    # commit.polarity = sentiment.polarity # Range: [-1.0, 1.0]
+                    # commit.subjectivity = sentiment.subjectivity # Range: [0.0, 1.0]
+
                     results.append(GitHubCommit(
                         repo=repo_name,
                         sha=commit_sha,
                         timestamp=created_at,
-                        message=commit_data['commit']['message'].splitlines()[0]
+                        message=commit_data['commit']['message'].splitlines()[0],
+                        polarity=None,
+                        subjectivity=None
                     ))
+
+                    # Assign polarity and subjectivity
+                    set_sentiment_analysis(results[-1])
 
                 else:
                     # TODO: Evaluate how to properly handle this
                     print(f"Could not fetch commit details for {repo_name}")
 
     return results
+
+def set_sentiment_analysis(commit: GitHubCommit) -> None:
+    blob = TextBlob(commit.message)
+
+    # Get the sentiment scores
+    sentiment = blob.sentiment
+
+    commit.polarity = sentiment.polarity # Range: [-1.0, 1.0]
+    commit.subjectivity = sentiment.subjectivity # Range: [0.0, 1.0]
 
 def check_n(n: int) -> None:
     """
