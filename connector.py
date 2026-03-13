@@ -14,22 +14,23 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 
+
 def getconn():
     conn= connector.connect(
-        "project-586e4c98-e32a-46da-b1c:us-central1:github-repo-analyzer",
-        "pymysql",
-        user="root",
-        password="gitrEpoadmin@2",
-        db="github_repo_analyzer"
+        DB_INSTANCE,
+        DB_DRIVER,
+        user = DB_USER,
+        password=DB_PASSWORD,
+        db=DB_NAME
     )
     return conn
-
-def connecttodatabase():
-    pool = sqlalchemy.create_engine(
+pool = sqlalchemy.create_engine(
         "mysql+pymysql://",
         creator=getconn,
     )
 
+
+def connecttodatabase():
     try:
         with pool.connect() as connection:
             connection.execute(text("SELECT 1"))
