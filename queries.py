@@ -5,9 +5,8 @@ from sqlalchemy import delete
 from sqlalchemy import update
 import os
 from connector import *
-import aiohttp
-import asyncio
 
+#Table objects
 metadata_obj = db.MetaData()
 Users = db.Table(
         'users',
@@ -39,36 +38,38 @@ UserSection = db.Table(
         db.Column('Name', db.String(255))
     )
 
+#Insert row entry into table queries
 def createUserQuery(name, githubusername, job):
     stmt = insert(Users).values(Name=name, GitHubUsername=githubusername, Job=job)
     with pool.connect() as connection:
         result = connection.execute(stmt)
         connection.commit()
-
-def modifyUserquery():
-    print(2)
-
 def createSectionQuery(repourl, sectionname):
     stmt = insert(Section).values(RepoURL=repourl, SectionName = sectionname)
     with pool.connect() as connection:
         result = connection.execute(stmt)
         connection.commit()
 
+#Modify existing information in the table queries
+def modifyUserquery():
+    print(2)
+
 def modifySectionQuery():
     print(4)
 
+#Search for and display information from the tables queries
 def searchUserQuery():
     print(5)
 
 def searchSectionQuery():
     print(6)
 
+#Delete row entries in tables queries
 def deleteUser(name, userid):
     stmt = delete(Users).where(Users.c.Name == name, Users.c.UserID == userid)
     with pool.connect() as connection:
         result = connection.execute(stmt)
         connection.commit()
-
 def deleteSection(sectionname, sectionid):
     stmt = delete(Section).where(Section.c.SectionName == sectionname, Section.c.SectionID == sectionid)
     with pool.connect() as connection:
