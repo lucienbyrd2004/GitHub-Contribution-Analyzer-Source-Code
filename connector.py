@@ -4,10 +4,12 @@ from google.cloud.sql.connector import Connector, IPTypes
 from sqlalchemy import text
 from dotenv import load_dotenv
 
+#Setting up the connector to get into the database
 ip_type = IPTypes.PRIVATE if os.environ.get("PRIVATE_IP") else IPTypes.PUBLIC
 connector = Connector(ip_type=ip_type, refresh_strategy="LAZY")
-load_dotenv()
 
+#Login for the database
+load_dotenv()
 DB_INSTANCE = os.getenv("DB_INSTANCE")
 DB_DRIVER = os.getenv("DB_DRIVER")
 DB_USER = os.getenv("DB_USER")
@@ -37,5 +39,3 @@ def connecttodatabase():
             print("Connection Established")
     except Exception as e:
         print(f"SQLAlchemy connection failed: {e}")
-    finally:
-        connection.close()
