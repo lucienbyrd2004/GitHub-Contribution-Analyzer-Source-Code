@@ -47,8 +47,8 @@ def createSectionQuery(repourl, sectionname):
         connection.commit()
 
 #Modify existing information in the table queries
-def modifyUserquery():
-    print(2)
+def modifyUserquery(userid):
+    stmt = update(Users).where(Users.c.UserID == userid)
 
 def modifySectionQuery():
     print(4)
