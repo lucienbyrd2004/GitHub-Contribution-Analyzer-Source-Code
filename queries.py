@@ -1,5 +1,5 @@
 import sqlalchemy as db
-from sqlalchemy import insert, delete, update, select
+from sqlalchemy import insert, delete, update, select, desc
 import os
 from connector import *
 
@@ -33,18 +33,36 @@ UserSection = db.Table(
         db.Column('SectionID', db.Integer, db.ForeignKey("section.SectionID"), nullable=False),
         db.Column('UserID', db.Integer, db.ForeignKey("users.UserID"), nullable=False),
     )
+def commitStatement(stmt):
+    with pool.connect() as connection:
+        result = connection.execute(stmt)
+        connection.commit()
 
-#Insert row entry into table queries
+def createUserLogin(userid, username, password):
+    #Create user login in the login table
+    #Check if any of the given parameters are null, if so it will raise an error and go back
+    if userid == None or username == None or password == None:
+        print("Error please make sure all inputs have a value.")
+        return
+    #If no error is raised then commit the statement to the database and create a new user login row with the user's ID, Username, and Password.
+    stmt = insert(Login).values(UserID=userid, Username=username, Password=password)
+    commitStatement(stmt)
+
 def createUserQuery(name, githubusername, job):
     stmt = insert(Users).values(Name=name, GitHubUsername=githubusername, Job=job)
-    with pool.connect() as connection:
-        result = connection.execute(stmt)
-        connection.commit()
+    commitStatement(stmt)
+    stmt = select(Users).order_by(desc(Users.c.UserID)).limit(1)
+    UserID = pool.connect().execute(stmt).scalar_one_or_none()
+    print("Please create your login.")
+    username = input("Username: ")
+    password = input("Password: ")
+    print("Attempting to establish user login")
+    createUserLogin(UserID, username, password)
+    print("User login established")
+
 def createSectionQuery(repourl, sectionname):
     stmt = insert(Section).values(RepoURL=repourl, SectionName = sectionname)
-    with pool.connect() as connection:
-        result = connection.execute(stmt)
-        connection.commit()
+    commitStatement(stmt)
 
 #Modify existing information in the table queries
 def modifyUserquery(userid):
@@ -52,7 +70,6 @@ def modifyUserquery(userid):
 
 def modifySectionQuery():
     print(4)
-
 
 def searchUserQuery(name):
     #SELECT * FROM Users WHERE Name = name
@@ -78,17 +95,14 @@ def searchSectionQuery():
 #Delete row entries in tables queries
 def deleteUser(name, userid):
     stmt = delete(Users).where(Users.c.Name == name, Users.c.UserID == userid)
-    with pool.connect() as connection:
-        result = connection.execute(stmt)
-        connection.commit()
+    commitStatement(stmt)
 def deleteSection(sectionname, sectionid):
     stmt = delete(Section).where(Section.c.SectionName == sectionname, Section.c.SectionID == sectionid)
-    with pool.connect() as connection:
-        result = connection.execute(stmt)
-        connection.commit()
+    commitStatement(stmt)
 
 def addUserToSection(userid, sectionid):
-    print(10)
+    stmt = insert(UserSection).values(UserID=userid, SectionID=sectionid)
+    commitStatement(stmt)
 
 #Tester code to ensure all functions work before integration into the program.
 def tester():
@@ -96,16 +110,7 @@ def tester():
     userInput = -1
     print("Welcome user")
     while userInput != 0:
-        userInput = int(input("\nWhat would you like to do? \n" \
-        "1) Create a new user\n" \
-        "2) Modify an existing user\n" \
-        "3) Create a new section\n" \
-        "4) Modify an existing section\n" \
-        "5) Search for a user\n" \
-        "6) Search for a section\n" \
-        "0) Exit Program\n"
-        "Please input your action's number: "))
-        
+        userInput = int(input("\nWhat would you like to do?: "))
         if userInput == 1:
             tempName = input("Input Name: ")
             tempGitHubUsername = input("Input GitHub Username: ")
