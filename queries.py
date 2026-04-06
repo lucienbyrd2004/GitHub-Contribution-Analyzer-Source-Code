@@ -96,6 +96,8 @@ def searchSectionQuery():
 def deleteUser(name, userid):
     stmt = delete(Users).where(Users.c.Name == name, Users.c.UserID == userid)
     commitStatement(stmt)
+    stmt = delete(Login).where(Login.c.UserID == userid)
+    commitStatement(stmt)
 def deleteSection(sectionname, sectionid):
     stmt = delete(Section).where(Section.c.SectionName == sectionname, Section.c.SectionID == sectionid)
     commitStatement(stmt)
@@ -103,7 +105,9 @@ def deleteSection(sectionname, sectionid):
 def addUserToSection(userid, sectionid):
     stmt = insert(UserSection).values(UserID=userid, SectionID=sectionid)
     commitStatement(stmt)
-
+def deleteUserSection(userid, sectionid):
+    stmt = delete(UserSection).where(UserID=userid, SectionID=sectionid)
+    commitStatement(stmt)
 #Tester code to ensure all functions work before integration into the program.
 def tester():
     connecttodatabase()
