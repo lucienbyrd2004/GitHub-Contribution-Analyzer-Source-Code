@@ -1,10 +1,21 @@
 import requests
+import os
+import re
 from datetime import datetime
 from dataclasses import dataclass
 from textblob import TextBlob
 import pandas as pd
+from dotenv import load_dotenv
 
-# TODO: Turn this into a real class
+# Load environment variables (for GitHub Token)
+load_dotenv()
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Setup headers for authenticated API requests
+HEADERS = {"Accept": "application/vnd.github.v3+json"}
+if GITHUB_TOKEN:
+    HEADERS["Authorization"] = f"token {GITHUB_TOKEN}"
+
 @dataclass
 class GitHubCommit:
     repo: str
@@ -13,13 +24,12 @@ class GitHubCommit:
     message: str
     polarity: float | None
     subjectivity: float | None
+    additions: int = 0
+    deletions: int = 0
 
     def set_sentiment_analysis(self) -> None:
         blob = TextBlob(self.message)
-
-        # Get the sentiment scores
         sentiment = blob.sentiment
-
         self.polarity = sentiment.polarity # Range: [-1.0, 1.0]
         self.subjectivity = sentiment.subjectivity # Range: [0.0, 1.0]
 
@@ -30,129 +40,111 @@ class GitHubCommit:
             'timestamp':    self.timestamp,
             'message':      self.message,
             'polarity':     self.polarity,
-            'subjectivity': self.subjectivity
+            'subjectivity': self.subjectivity,
+            'additions':    self.additions,
+            'deletions':    self.deletions
         }
 
-# TODO: Implement this!
-class GitHubPull:
-    pass
-
-def get_commit_from_name(username: str, n: int) -> list[GitHubCommit]:
+# --- URL PARSING UTILITIES ---
+def parse_github_url(url: str):
     """
-    Retrieve the last `n` commits from a user's GitHub profile.
+    Takes a GitHub URL and determines if it's a profile or a repository.
+    Returns a tuple: ('type', 'username', 'repo_name')
+    """
+    # Remove trailing slashes
+    url = url.strip("/")
     
-    This function fetches commit history from GitHub's API for the specified
-    username and returns the most recent commits with their metadata.
+    # Extract the path part of the URL (e.g., 'Jabril/my-repo' or 'Jabril')
+    match = re.search(r"github\.com/([^/]+)/?([^/]+)?", url)
+    if not match:
+        raise ValueError("Invalid GitHub URL provided.")
+    
+    owner = match.group(1)
+    repo = match.group(2)
+    
+    if repo:
+        return "repo", owner, repo
+    else:
+        return "user", owner, None
 
-    Args:
-        username (str): GitHub username. Should be sanitized to remove any
-            special characters or whitespace before processing.
-        n (int): Number of most recent commits to retrieve. Must be positive
-            and not exceed the maximum allowed limit (currently 20).
-
-    Returns:
-        list[GitHubCommit]: A list of commit objects ordered from most 
-            recent to oldest. Each object contains 'repo', 'sha', 
-            'timestamp', and 'message' attributes.
-
-    Raises:
-        TypeError: If `n` is not an integer.
-        ValueError: If:
-            - `n` is less than 1
-            - `n` exceeds the maximum allowed limit (currently 20)
-            - The username is invalid (empty, contains invalid characters)
-
-    Example:
-        >>> commits = get_commit_from_name("octocat", 3)
-        >>> print(commits[0]['message'])
-        'Fix README typo'
-        >>> len(commits)
-        3
+# --- API FETCHING FUNCTIONS ---
+def get_user_activity(username: str, pages: int = 2) -> list[GitHubCommit]:
     """
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-
-    user_event_str = f"https://api.github.com/users/{username}/events"
+    Fetches recent PushEvents for a user. Best for Histograms, Word Clouds, and Sentiment.
+    """
     results = []
-    i: int = 0 # Integer to hold our iterations
-
-    response = requests.get(user_event_str, headers=headers) # Added headers here just in case
-    response.raise_for_status()
-
-    events_data = response.json()
-
-    for event in events_data[:n]: # Checking more than one in case the first isn't a push
-        # TODO: Add Pull event types
-        if event['type'] == 'PushEvent':
-            created_at = datetime.strptime(event['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-            repo_name = event['repo']['name']
+    
+    for page in range(1, pages + 1):
+        url = f"https://api.github.com/users/{username}/events/public?per_page=100&page={page}"
+        response = requests.get(url, headers=HEADERS)
+        
+        if response.status_code != 200:
+            print(f"Failed to fetch data for {username}: {response.text}")
+            break
             
-            # Use 'head' as the commit SHA
-            commit_sha = event['payload'].get('head')
+        events = response.json()
+        if not events:
+            break
             
-            if commit_sha:
-                # Construct the URL using the repo name provided in the event
-                commit_url = f"https://api.github.com/repos/{repo_name}/commits/{commit_sha}"
+        for event in events:
+            if event['type'] == 'PushEvent':
+                repo_name = event['repo']['name']
+                # The event timestamp is when the push happened
+                timestamp_str = event['created_at']
+                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ")
                 
-                commit_res = requests.get(commit_url, headers=headers)
-                if commit_res.status_code == 200:
-                    commit_data = commit_res.json()
-
-                    # commit.polarity = sentiment.polarity # Range: [-1.0, 1.0]
-                    # commit.subjectivity = sentiment.subjectivity # Range: [0.0, 1.0]
-
-                    results.append(GitHubCommit(
+                for commit in event['payload'].get('commits', []):
+                    # We grab the first line of the commit message
+                    msg = commit['message'].splitlines()[0]
+                    sha = commit['sha']
+                    
+                    new_commit = GitHubCommit(
                         repo=repo_name,
-                        sha=commit_sha,
-                        timestamp=created_at,
-                        message=commit_data['commit']['message'].splitlines()[0],
+                        sha=sha,
+                        timestamp=timestamp,
+                        message=msg,
                         polarity=None,
                         subjectivity=None
-                    ))
-
-                    # Assign polarity and subjectivity
-                    results[-1].set_sentiment_analysis()
-
-                else:
-                    # TODO: Evaluate how to properly handle this
-                    print(f"Could not fetch commit details for {repo_name}")
-
+                    )
+                    new_commit.set_sentiment_analysis()
+                    results.append(new_commit)
+                    
     return results
 
-def check_n(n: int) -> None:
+def get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
     """
-    Validate n
+    Fetches aggregate lines added/deleted per user for a specific repository.
+    Perfect for the "Top Users Bar Chart".
     """
-    if not isinstance(n, int):
-        raise TypeError(f"n must be an integer, got {type(n).__name__}")
+    url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
+    response = requests.get(url, headers=HEADERS)
     
-    if n < 1:
-        raise ValueError(f"n must be positive, got {n}")
+    # GitHub often returns 202 Accepted while it compiles these stats in the background.
+    if response.status_code == 202:
+        raise Exception("GitHub is compiling these statistics. Please try again in a few seconds.")
+    elif response.status_code != 200:
+        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+        
+    stats = response.json()
+    data = []
     
-    # At the moment, let's define the maximum number of commits to be 20
-    if n > 20:
-        raise ValueError(f"n cannot exceed {20}, got {n}")
+    for contributor in stats:
+        author = contributor['author']['login']
+        total_commits = contributor['total']
+        
+        # Tally up all additions and deletions across all weeks
+        total_additions = sum(week['a'] for week in contributor['weeks'])
+        total_deletions = sum(week['d'] for week in contributor['weeks'])
+        
+        data.append({
+            "Author": author,
+            "Total Commits": total_commits,
+            "Additions": total_additions,
+            "Deletions": total_deletions
+        })
+        
+    return pd.DataFrame(data)
 
-def check_username(username: str) -> None:
-    """
-    Validate a given GitHub username
-    """
-    if not isinstance(username, str):
-        raise TypeError(f"username must be a string, got {type(username).__name__}")
-    
-    if not all(c.isalnum() or c == '-' for c in username):
-        raise ValueError(f"username is invalid")
-
-def to_pd(results: list[GitHubCommit]) -> pd.DataFrame:
-    """
-    Convert list of GitHubCommit instances to a dataframe
-    """
-    results_as_dict = []
-
-    for r in results:
-        results_as_dict.append(
-            r.to_dict()
-        )
-
-    return pd.DataFrame(results_as_dict)
+def get_user_commit_from_name(username: str) -> list[GitHubCommit]:
+    """Compatibility wrapper for your original function calls."""
+    return get_user_activity(username, pages=1)
