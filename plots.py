@@ -7,6 +7,8 @@ import re
 from wordcloud import WordCloud
 from sklearn.tree import DecisionTreeClassifier
 from datetime import datetime
+import requests
+from sklearn.tree import plot_tree
 
 # --- 1. ACTIVITY HISTOGRAMS ---
 def generate_histogram(username: str) -> plt.Figure:
@@ -136,4 +138,68 @@ def generate_sentiment_scatter(username: str) -> plt.Figure:
     ax.set_xlim(-1.1, 1.1)
     ax.set_ylim(-0.1, 1.1)
     
+    return fig
+
+# --- 5. MACHINE LEARNING DECISION TREE ---
+def generate_decision_tree(username: str) -> plt.Figure:
+    """Trains a Decision Tree to predict if a commit is Contributory or Deleterious."""
+    # We use 1 page here so we don't hit the API rate limit when doing deep-dives
+    commits = git_parser.get_user_activity(username, pages=1)
+    
+    if not commits:
+        raise ValueError(f"No recent activity found for user {username}.")
+
+    data = []
+    commits = commits[:30] # Limited to avoid time out
+    
+    # We need to fetch the exact additions/deletions for these commits to build our target label
+    headers = git_parser.HEADERS
+    for c in commits:
+        url = f"https://api.github.com/repos/{c.repo}/commits/{c.sha}"
+        res = requests.get(url, headers=headers)
+        
+        if res.status_code == 200:
+            stats = res.json().get('stats', {})
+            adds = stats.get('additions', 0)
+            dels = stats.get('deletions', 0)
+            
+            # Target Label: 1 if Contributory (more additions), 0 if Deleterious (more deletions)
+            label = 1 if adds > dels else 0
+            
+            hour = c.timestamp.hour
+            polarity = c.polarity if c.polarity is not None else 0.0
+            subjectivity = c.subjectivity if c.subjectivity is not None else 0.0
+            msg_len = len(c.message)
+            
+            data.append([hour, polarity, subjectivity, msg_len, label])
+
+    df = pd.DataFrame(data, columns=['Hour', 'Polarity', 'Subjectivity', 'MessageLength', 'Class'])
+
+    # The Decision Tree requires at least two types of classes to learn how to split them
+    if df.empty or len(df['Class'].unique()) < 2:
+        raise ValueError("Not enough diverse commit data to train a model. (User must have BOTH additions and deletions recently).")
+
+    # X = Features (What we use to predict), y = Target (What we are predicting)
+    X = df[['Hour', 'Polarity', 'Subjectivity', 'MessageLength']]
+    y = df['Class']
+
+    # Train the Machine Learning Model! (Max depth 3 keeps the visual chart readable)
+    clf = DecisionTreeClassifier(max_depth=3, random_state=42)
+    clf.fit(X, y)
+
+    # Draw the Decision Tree
+    fig, ax = plt.subplots(figsize=(14, 8))
+    plot_tree(
+        clf, 
+        feature_names=X.columns.tolist(), 
+        class_names=['Deleterious', 'Contributory'], 
+        filled=True, 
+        rounded=True, 
+        ax=ax, 
+        fontsize=10
+    )
+    
+    ax.set_title(f"Machine Learning: Predicting Commit Type for {username}", fontsize=16)
+    
+    fig.tight_layout()
     return fig

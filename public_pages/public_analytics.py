@@ -14,7 +14,8 @@ tool_choice = st.selectbox(
         "Activity Histograms (Time/Day)",
         "Word Cloud (Commit Messages)",
         "Top Users Bar Chart (Repo)",
-        "Sentiment Scatter Plot"
+        "Sentiment Scatter Plot",
+        "Machine Learning: Decision Tree"
     ]
 )
 
@@ -53,6 +54,11 @@ if st.button("Generate Analysis"):
                     else:
                         fig = plots.generate_top_users_barchart(repo_url)
                         st.pyplot(fig)
+
+                        # ... other elif blocks ...
+                elif tool_choice == "Machine Learning: Decision Tree":
+                    fig = plots.generate_decision_tree(username)
+                    st.pyplot(fig)
                         
             except ValueError as ve:
                 # This catches the errors we set up in plots.py (like "No recent activity found")

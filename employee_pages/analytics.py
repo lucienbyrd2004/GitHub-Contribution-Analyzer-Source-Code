@@ -33,7 +33,8 @@ try:
                 "Activity Histograms (Time/Day)",
                 "Word Cloud (Commit Messages)",
                 "Top Users Bar Chart (Repo)",
-                "Sentiment Scatter Plot"
+                "Sentiment Scatter Plot",
+                "Machine Learning: Decision Tree"  # <-- ADD THIS LINE
             ]
         )
 
@@ -45,7 +46,8 @@ try:
             user_specific_tools = [
                 "Activity Histograms (Time/Day)", 
                 "Word Cloud (Commit Messages)", 
-                "Sentiment Scatter Plot"
+                "Sentiment Scatter Plot",
+                "Machine Learning: Decision Tree"
             ]
             
             # Prevent crashing if the user forgot to add their GitHub username to their profile
@@ -70,6 +72,10 @@ try:
                         elif tool_choice == "Top Users Bar Chart (Repo)":
                             # This one uses the Repo URL, not the individual user!
                             fig = plots.generate_top_users_barchart(repo_url)
+                            st.pyplot(fig)
+                            
+                        elif tool_choice == "Machine Learning: Decision Tree":
+                            fig = plots.generate_decision_tree(github_username)
                             st.pyplot(fig)
                             
                     except Exception as e:
