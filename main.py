@@ -1,5 +1,5 @@
 import streamlit as st
-import queries  # Now seamlessly connected to your database!
+import queries
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="GitHub Contribution Analyzer", page_icon="📊", layout="wide")

@@ -143,6 +143,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.streamlit
 
 # Spyder project settings
 .spyderproject
@@ -153,11 +154,6 @@ venv.bak/
 
 # mkdocs documentation
 /site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
 
 # Pyre type checker
 .pyre/
