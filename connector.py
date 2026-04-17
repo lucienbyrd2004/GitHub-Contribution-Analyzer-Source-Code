@@ -12,17 +12,17 @@ connector = Connector(ip_type=ip_type, refresh_strategy="LAZY")
 #Login for the database
 load_dotenv()
     
-# DB_INSTANCE = os.getenv("DB_INSTANCE")
-# DB_DRIVER = os.getenv("DB_DRIVER")
-# DB_USER = os.getenv("DB_USER")
-# DB_PASSWORD = os.getenv("DB_PASSWORD")
-# DB_NAME = os.getenv("DB_NAME")
+DB_INSTANCE = os.getenv("DB_INSTANCE")
+DB_DRIVER = os.getenv("DB_DRIVER")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
 
-DB_INSTANCE = st.secrets["DB_INSTANCE"]
-DB_DRIVER = st.secrets["DB_DRIVER"]
-DB_USER = st.secrets["DB_USER"]
-DB_PASSWORD = st.secrets["DB_PASSWORD"]
-DB_NAME = st.secrets["DB_NAME"]
+# DB_INSTANCE = st.secrets["DB_INSTANCE"]
+# DB_DRIVER = st.secrets["DB_DRIVER"]
+# DB_USER = st.secrets["DB_USER"]
+# DB_PASSWORD = st.secrets["DB_PASSWORD"]
+# DB_NAME = st.secrets["DB_NAME"]
 
 
 def getconn():
