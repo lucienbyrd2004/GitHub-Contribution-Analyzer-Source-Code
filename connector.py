@@ -11,19 +11,19 @@ connector = Connector(ip_type=ip_type, refresh_strategy="LAZY")
 
 #Login for the database
 load_dotenv()
-
-if "DB_HOST" in st.secrets:
-    os.environ["DB_HOST"] = st.secrets["DB_HOST"]
-    os.environ["DB_USER"] = st.secrets["DB_USER"]
-    os.environ["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
-    os.environ["DB_NAME"] = st.secrets["DB_NAME"]
-    os.environ["GITHUB_TOKEN"] = st.secrets["GITHUB_TOKEN"]
     
-DB_INSTANCE = os.getenv("DB_INSTANCE")
-DB_DRIVER = os.getenv("DB_DRIVER")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_NAME = os.getenv("DB_NAME")
+# DB_INSTANCE = os.getenv("DB_INSTANCE")
+# DB_DRIVER = os.getenv("DB_DRIVER")
+# DB_USER = os.getenv("DB_USER")
+# DB_PASSWORD = os.getenv("DB_PASSWORD")
+# DB_NAME = os.getenv("DB_NAME")
+
+DB_INSTANCE = st.secrets["DB_INSTANCE"]
+DB_DRIVER = st.secrets["DB_DRIVER"]
+DB_USER = st.secrets["DB_USER"]
+DB_PASSWORD = st.secrets["DB_PASSWORD"]
+DB_NAME = st.secrets["DB_NAME"]
+
 
 def getconn():
     conn= connector.connect(

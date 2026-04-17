@@ -130,93 +130,101 @@ def get_user_activity(username: str, pages: int = 2) -> list[GitHubCommit]:
                     
     return results
 
+# def get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
+#     """
+#     Fetches aggregate lines added/deleted per user for a specific repository.
+#     Perfect for the "Top Users Bar Chart".
+#     """
+#     url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
+#     response = requests.get(url, headers=HEADERS)
+    
+#     # GitHub often returns 202 Accepted while it compiles these stats in the background.
+#     if response.status_code == 202:
+#         raise Exception("GitHub took too long to compile statistics. Please try again later.")
+#     elif response.status_code != 200:
+#         raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+        
+#     stats = response.json()
+#     data = []
+    
+#     for contributor in stats:
+#         author = contributor['author']['login']
+#         total_commits = contributor['total']
+        
+#         # Tally up all additions and deletions across all weeks
+#         total_additions = sum(week['a'] for week in contributor['weeks'])
+#         total_deletions = sum(week['d'] for week in contributor['weeks'])
+        
+#         data.append({
+#             "Author": author,
+#             "Total Commits": total_commits,
+#             "Additions": total_additions,
+#             "Deletions": total_deletions
+#         })
+        
+#     return pd.DataFrame(data)
+
 def get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
     """
     Fetches aggregate lines added/deleted per user for a specific repository.
-    Perfect for the "Top Users Bar Chart".
-    """
-    url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
-    response = requests.get(url, headers=HEADERS)
-    
-    # GitHub often returns 202 Accepted while it compiles these stats in the background.
-    if response.status_code == 202:
-        raise Exception("GitHub took too long to compile statistics. Please try again later.")
-    elif response.status_code != 200:
-        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
-        
-    stats = response.json()
-    data = []
-    
-    for contributor in stats:
-        author = contributor['author']['login']
-        total_commits = contributor['total']
-        
-        # Tally up all additions and deletions across all weeks
-        total_additions = sum(week['a'] for week in contributor['weeks'])
-        total_deletions = sum(week['d'] for week in contributor['weeks'])
-        
-        data.append({
-            "Author": author,
-            "Total Commits": total_commits,
-            "Additions": total_additions,
-            "Deletions": total_deletions
-        })
-        
-    return pd.DataFrame(data)
-
-def new_get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
-    """
-    Fetches aggregate lines added/deleted per user for a specific repository.
-    Perfect for the "Top Users Bar Chart".
+    Note: This only fetches the last 30 commits unless pagination is added.
     """
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
     response = requests.get(url, headers=HEADERS)
 
-    # GitHub often returns 202 Accepted while it compiles these stats in the background.
-    if response.status_code == 202:
-        raise Exception("GitHub took too long to compile statistics. Please try again later.")
-    elif response.status_code != 200:
-        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch repo commits: {response.status_code}")
     
-    info = response.json()
-    data = []
+    commits_info = response.json()
+    
+    # Use a dictionary to aggregate stats per author
+    author_stats = {}
 
-    for commit in info:
-        author = commit['author']['name']
+    for commit in commits_info:
+        # Safely get the author's GitHub handle (fallback to their git name if not linked to an account)
+        if commit.get('author') and commit['author'].get('login'):
+            author = commit['author']['login']
+        else:
+            author = commit['commit']['author']['name']
+            
+        # Initialize the author in our tracker if they don't exist yet
+        if author not in author_stats:
+            author_stats[author] = {"Total Commits": 0, "Additions": 0, "Deletions": 0}
+
+        # Fetch the specific lines changed for this commit
         commit_data = get_commit_data_from_url(commit['url'])
 
-        total = commit_data['total']
-        additions = commit_data['additions']
-        deletions = commit_data['deletions']
-        total = commit_data['total']
+        # Aggregate the data
+        author_stats[author]["Total Commits"] += 1
+        author_stats[author]["Additions"] += commit_data['additions']
+        author_stats[author]["Deletions"] += commit_data['deletions']
 
+    # Convert the aggregated dictionary into a format pandas likes
+    data = []
+    for author, stats in author_stats.items():
         data.append({
             "Author": author,
-            "Total Commits": total,
-            "Additions": additions,
-            "Deletions": deletions
+            "Total Commits": stats["Total Commits"],
+            "Additions": stats["Additions"],
+            "Deletions": stats["Deletions"]
         })
 
     return pd.DataFrame(data)
 
 def get_commit_data_from_url(url: str) -> dict:
-    commit_data = {}
-
     response = requests.get(url, headers=HEADERS)
     
-    # GitHub often returns 202 Accepted while it compiles these stats in the background.
-    if response.status_code == 202:
-        raise Exception("GitHub took too long to compile statistics. Please try again later.")
-    elif response.status_code != 200:
-        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+    if response.status_code != 200:
+        # If a single commit fails, return 0s so it doesn't crash the whole loop
+        return {'total': 0, 'additions': 0, 'deletions': 0}
     
-    stats = response.json()
+    stats = response.json().get('stats', {})
     
-    commit_data['total'] = stats['stats']['total']
-    commit_data['additions'] = stats['stats']['additions']
-    commit_data['deletions'] = stats['stats']['deletions']
-
-    return commit_data
+    return {
+        'total': stats.get('total', 0),
+        'additions': stats.get('additions', 0),
+        'deletions': stats.get('deletions', 0)
+    }
 
 def get_user_commit_from_name(username: str) -> list[GitHubCommit]:
     """Compatibility wrapper for your original function calls."""
