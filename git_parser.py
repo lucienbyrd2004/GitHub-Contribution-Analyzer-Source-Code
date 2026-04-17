@@ -164,6 +164,60 @@ def get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
         
     return pd.DataFrame(data)
 
+def new_get_repo_contributor_stats(owner: str, repo: str) -> pd.DataFrame:
+    """
+    Fetches aggregate lines added/deleted per user for a specific repository.
+    Perfect for the "Top Users Bar Chart".
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/commits"
+    response = requests.get(url, headers=HEADERS)
+
+    # GitHub often returns 202 Accepted while it compiles these stats in the background.
+    if response.status_code == 202:
+        raise Exception("GitHub took too long to compile statistics. Please try again later.")
+    elif response.status_code != 200:
+        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+    
+    info = response.json()
+    data = []
+
+    for commit in info:
+        author = commit['author']['name']
+        commit_data = get_commit_data_from_url(commit['url'])
+
+        total = commit_data['total']
+        additions = commit_data['additions']
+        deletions = commit_data['deletions']
+        total = commit_data['total']
+
+        data.append({
+            "Author": author,
+            "Total Commits": total,
+            "Additions": additions,
+            "Deletions": deletions
+        })
+
+    return pd.DataFrame(data)
+
+def get_commit_data_from_url(url: str) -> dict:
+    commit_data = {}
+
+    response = requests.get(url, headers=HEADERS)
+    
+    # GitHub often returns 202 Accepted while it compiles these stats in the background.
+    if response.status_code == 202:
+        raise Exception("GitHub took too long to compile statistics. Please try again later.")
+    elif response.status_code != 200:
+        raise Exception(f"Failed to fetch repo stats: {response.status_code}")
+    
+    stats = response.json()
+    
+    commit_data['total'] = stats['stats']['total']
+    commit_data['additions'] = stats['stats']['additions']
+    commit_data['deletions'] = stats['stats']['deletions']
+
+    return commit_data
+
 def get_user_commit_from_name(username: str) -> list[GitHubCommit]:
     """Compatibility wrapper for your original function calls."""
     return get_user_activity(username, pages=1)
